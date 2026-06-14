@@ -79,7 +79,15 @@
 
   .add-panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:28px}
   .form-grid{display:grid;gap:12px;align-items:end}
-  .fg-jersey{grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr auto}
+  .fg-jersey{grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr auto}
+  .size-picker-group{grid-column:1/-1;margin-top:4px}
+  .size-picker{display:flex;flex-wrap:wrap;gap:7px}
+  .size-chip{display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;user-select:none}
+  .size-chip:hover{border-color:var(--accent);color:var(--accent)}
+  .size-chip.selected{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+  .size-entry{display:flex;flex-direction:column;align-items:center;gap:5px}
+  .size-qty-input{width:48px;height:28px;background:var(--surface);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;text-align:center;outline:none;padding:0 4px}
+  .size-qty-input::placeholder{color:var(--muted)}
   .fg-misc{grid-template-columns:2.5fr 1fr 1fr auto}
   .fg-sell{grid-template-columns:2fr 1fr 1fr 1fr auto}
   .form-group{display:flex;flex-direction:column;gap:7px}
@@ -223,13 +231,47 @@
       <div class="form-grid fg-jersey">
         <div class="form-group"><label>Jersey Name</label><input type="text" id="f-name" placeholder="e.g. Ronaldo #7 Real Madrid"></div>
         <div class="form-group"><label>Sleeves</label><select id="f-sleeves"><option value="">— Sleeves —</option><option>Short</option><option>Long</option></select></div>
-        <div class="form-group"><label>Size</label><select id="f-size"><option value="">— Size —</option><option>Kids</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option><option>4XL</option></select></div>
         <div class="form-group"><label>Type</label><select id="f-type"><option value="">— Type —</option><option>Home</option><option>Away</option></select></div>
-        <div class="form-group"><label>Quantity</label><input type="number" id="f-qty" placeholder="0" min="0"></div>
         <div class="form-group"><label>Cost ($)</label><input type="number" id="f-cost" placeholder="0.00" step="0.01" min="0"></div>
         <div class="form-group"><label>Price ($)</label><input type="number" id="f-price" placeholder="0.00" step="0.01" min="0"></div>
-        <div class="form-group"><label>Sold</label><input type="number" id="f-sold" placeholder="0" min="0"></div>
-        <button class="btn-add" id="btnAddJersey" onclick="addJersey()">+ Add Jersey</button>
+        <button class="btn-add" id="btnAddJersey" onclick="addJersey()" style="align-self:end">+ Add Jersey</button>
+        <div class="size-picker-group">
+          <label style="font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:10px">Sizes — tap to select, then set quantity per size</label>
+          <div class="size-picker" id="sizePicker">
+            <div class="size-entry" data-size="Kids">
+              <span class="size-chip" onclick="toggleSize(this,'Kids')">Kids</span>
+              <input class="size-qty-input" id="qty-Kids" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="S">
+              <span class="size-chip" onclick="toggleSize(this,'S')">S</span>
+              <input class="size-qty-input" id="qty-S" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="M">
+              <span class="size-chip" onclick="toggleSize(this,'M')">M</span>
+              <input class="size-qty-input" id="qty-M" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="L">
+              <span class="size-chip" onclick="toggleSize(this,'L')">L</span>
+              <input class="size-qty-input" id="qty-L" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="XL">
+              <span class="size-chip" onclick="toggleSize(this,'XL')">XL</span>
+              <input class="size-qty-input" id="qty-XL" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="2XL">
+              <span class="size-chip" onclick="toggleSize(this,'2XL')">2XL</span>
+              <input class="size-qty-input" id="qty-2XL" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="3XL">
+              <span class="size-chip" onclick="toggleSize(this,'3XL')">3XL</span>
+              <input class="size-qty-input" id="qty-3XL" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+            <div class="size-entry" data-size="4XL">
+              <span class="size-chip" onclick="toggleSize(this,'4XL')">4XL</span>
+              <input class="size-qty-input" id="qty-4XL" type="number" min="0" placeholder="0" style="display:none">
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="section-header">
@@ -435,31 +477,67 @@ function switchTab(name, btn) {
   renderAll();
 }
 
+// ── SIZE CHIP TOGGLE ──
+function toggleSize(el, size) {
+  const selected = el.classList.toggle('selected');
+  const input = document.getElementById('qty-'+size);
+  if (selected) {
+    input.style.display = 'block';
+    input.focus();
+  } else {
+    input.style.display = 'none';
+    input.value = '';
+  }
+}
+function getSelectedSizesWithQty() {
+  const results = [];
+  document.querySelectorAll('.size-chip.selected').forEach(chip => {
+    const size = chip.textContent.trim();
+    const qty  = parseInt(document.getElementById('qty-'+size).value) || 0;
+    results.push({ size, qty });
+  });
+  return results;
+}
+function clearSizeChips() {
+  document.querySelectorAll('.size-chip').forEach(c => {
+    c.classList.remove('selected');
+    const size = c.textContent.trim();
+    const input = document.getElementById('qty-'+size);
+    if (input) { input.style.display='none'; input.value=''; }
+  });
+}
+
 // ── ADD JERSEY ──
+// Creates one inventory row per selected size with its own quantity
 async function addJersey() {
   if (isBusy) return;
   const name   = document.getElementById('f-name').value.trim();
   const sleeves= document.getElementById('f-sleeves').value;
-  const size   = document.getElementById('f-size').value;
   const type   = document.getElementById('f-type').value;
-  const qty    = parseInt(document.getElementById('f-qty').value)||0;
   const cost   = parseFloat(document.getElementById('f-cost').value)||0;
   const price  = parseFloat(document.getElementById('f-price').value)||0;
-  const sold   = parseInt(document.getElementById('f-sold').value)||0;
-  if (!name||!sleeves||!size||!type) { toastMsg('⚠ Fill in Name, Sleeves, Size & Type','error'); return; }
+  const sizeEntries = getSelectedSizesWithQty();
+  if (!name||!sleeves||!type) { toastMsg('⚠ Fill in Name, Sleeves & Type','error'); return; }
+  if (sizeEntries.length === 0) { toastMsg('⚠ Select at least one size','error'); return; }
+  if (sizeEntries.some(s=>s.qty<=0)) { toastMsg('⚠ Set a quantity for each selected size','error'); return; }
   isBusy=true;
   const btn=document.getElementById('btnAddJersey');
-  btn.disabled=true; btn.textContent='Saving…';
-  // profit stored as price-cost for backward compat with sheet columns
-  const item = { id: Date.now(), name, sleeves, size, type, qty, cost, profit: price, sold };
+  btn.disabled=true; btn.textContent=`Saving ${sizeEntries.length} size${sizeEntries.length>1?'s':''}…`;
   try {
-    await apiPOST({ action:'addJersey', data: item });
-    jerseys.push(item); renderAll(); populateSellDropdown();
-    toastMsg('✓ Jersey added!');
-    ['f-name','f-sleeves','f-size','f-qty','f-type','f-cost','f-price','f-sold'].forEach(id=>{
+    for (let i=0; i<sizeEntries.length; i++) {
+      const { size, qty } = sizeEntries[i];
+      const item = { id: Date.now()+i, name, sleeves, size, type, qty, cost, profit: price, sold: 0 };
+      await apiPOST({ action:'addJersey', data: item });
+      jerseys.push(item);
+    }
+    renderAll(); populateSellDropdown();
+    const summary = sizeEntries.map(s=>`${s.size}(${s.qty})`).join(', ');
+    toastMsg(`✓ ${name} added — ${summary}`);
+    ['f-name','f-sleeves','f-type','f-cost','f-price'].forEach(id=>{
       const el=document.getElementById(id);
       if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';
     });
+    clearSizeChips();
   } catch(e){ toastMsg('⚠ Save failed: '+e.message,'error'); }
   btn.disabled=false; btn.textContent='+ Add Jersey'; isBusy=false;
 }
