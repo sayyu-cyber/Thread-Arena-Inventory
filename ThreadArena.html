@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thread Arena</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  :root {
+    --black:#0a0a0a; --surface:#111214; --card:#181a1e; --border:#2a2d35;
+    --accent:#00e5a0; --accent-dim:rgba(0,229,160,0.12); --accent-glow:rgba(0,229,160,0.35);
+    --red:#ff4d4d; --red-dim:rgba(255,77,77,0.12);
+    --yellow:#ffc947; --yellow-dim:rgba(255,201,71,0.12);
+    --blue:#4d9eff; --blue-dim:rgba(77,158,255,0.12);
+    --purple:#b47fff; --purple-dim:rgba(180,127,255,0.12);
+    --text:#f0f0f0; --muted:#6b7280; --subtle:#374151;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--black);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh}
+
+  #setupScreen{position:fixed;inset:0;background:var(--black);z-index:500;display:flex;align-items:center;justify-content:center;}
+  .setup-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:48px;width:560px;max-width:95vw;text-align:center;}
+  .setup-logo{font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:4px;color:var(--accent);text-shadow:0 0 24px var(--accent-glow);margin-bottom:8px}
+  .setup-logo span{color:var(--text)}
+  .setup-sub{color:var(--muted);font-size:14px;margin-bottom:36px;line-height:1.6}
+  .setup-label{display:block;font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);text-align:left;margin-bottom:8px}
+  .setup-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:12px;padding:14px 16px;outline:none;margin-bottom:20px;transition:border-color 0.2s;}
+  .setup-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+  .setup-btn{width:100%;background:var(--accent);color:var(--black);border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:15px;font-weight:700;padding:14px;cursor:pointer;transition:opacity 0.15s,box-shadow 0.15s;letter-spacing:0.5px;}
+  .setup-btn:hover{opacity:0.85;box-shadow:0 0 20px var(--accent-glow)}
+  .setup-note{margin-top:16px;font-size:12px;color:var(--muted);line-height:1.6}
+
+  #loadingOverlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+  #loadingOverlay.show{display:flex}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{color:var(--muted);font-size:13px;font-family:'JetBrains Mono',monospace}
+
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 40px;display:flex;align-items:center;justify-content:space-between;height:68px;position:sticky;top:0;z-index:100}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:3px;color:var(--accent);text-shadow:0 0 24px var(--accent-glow)}
+  .logo span{color:var(--text)}
+  .header-right{display:flex;align-items:center;gap:12px}
+  .header-date{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent-glow);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .live-label{font-size:11px;color:var(--accent);font-weight:600;letter-spacing:0.5px}
+
+  .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 40px}
+  .tab-btn{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:14px 22px;cursor:pointer;letter-spacing:0.5px;transition:all 0.15s;margin-bottom:-1px}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-btn:hover:not(.active){color:var(--text)}
+
+  main{padding:36px 40px;max-width:1700px;margin:0 auto}
+  .tab-content{display:none}
+  .tab-content.active{display:block}
+
+  .stats-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:32px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 22px;position:relative;overflow:hidden}
+  .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+  .stat-card.green::before{background:var(--accent)}
+  .stat-card.red::before{background:var(--red)}
+  .stat-card.yellow::before{background:var(--yellow)}
+  .stat-card.blue::before{background:var(--blue)}
+  .stat-card.white::before{background:#fff}
+  .stat-card.purple::before{background:var(--purple)}
+  .stat-label{font-size:10px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  .stat-value{font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:600;line-height:1}
+  .stat-card.green .stat-value{color:var(--accent)}
+  .stat-card.red .stat-value{color:var(--red)}
+  .stat-card.yellow .stat-value{color:var(--yellow)}
+  .stat-card.blue .stat-value{color:var(--blue)}
+  .stat-card.white .stat-value{color:#fff}
+  .stat-card.purple .stat-value{color:var(--purple)}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:6px;font-family:'JetBrains Mono',monospace}
+
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .section-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;color:var(--text)}
+  .section-title span{color:var(--accent)}
+
+  .add-panel{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:28px}
+  .form-grid{display:grid;gap:12px;align-items:end}
+  .fg-jersey{grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr auto}
+  .fg-misc{grid-template-columns:2.5fr 1fr 1fr auto}
+  .fg-sell{grid-template-columns:2fr 1fr 1fr 1fr auto}
+  .form-group{display:flex;flex-direction:column;gap:7px}
+  .form-group label{font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+  .form-group input,.form-group select{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px 13px;outline:none;transition:border-color 0.2s;width:100%}
+  .form-group input:focus,.form-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-dim)}
+  .form-group select option{background:#1e2127}
+  .form-group input[type="number"]{font-family:'JetBrains Mono',monospace}
+
+  .btn-add{background:var(--accent);color:var(--black);border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;padding:10px 20px;cursor:pointer;letter-spacing:0.5px;transition:opacity 0.15s,box-shadow 0.15s;white-space:nowrap;height:40px;align-self:end}
+  .btn-add:hover{opacity:0.85;box-shadow:0 0 18px var(--accent-glow)}
+  .btn-add:disabled{opacity:0.4;cursor:not-allowed}
+  .btn-add.purple{background:var(--purple)}
+  .btn-add.purple:hover{box-shadow:0 0 18px rgba(180,127,255,0.4)}
+  .btn-add.blue-btn{background:var(--blue)}
+  .btn-add.blue-btn:hover{box-shadow:0 0 18px rgba(77,158,255,0.4)}
+
+  .filter-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .filter-input{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:8px 14px;outline:none;min-width:220px;transition:border-color 0.2s}
+  .filter-input:focus{border-color:var(--accent)}
+  .filter-btn{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:8px 14px;cursor:pointer;transition:all 0.15s}
+  .filter-btn.active,.filter-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+  .count-badge{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+
+  .table-wrapper{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:28px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{background:var(--surface);padding:13px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+  thead th:hover{color:var(--accent)}
+  thead th.sorted{color:var(--accent)}
+  tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:rgba(255,255,255,0.025)}
+  tbody td{padding:12px 14px;vertical-align:middle}
+  .jersey-name{font-weight:600;color:var(--text)}
+  .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.5px}
+  .badge-home{background:var(--blue-dim);color:var(--blue)}
+  .badge-away{background:var(--yellow-dim);color:var(--yellow)}
+  .badge-short{background:rgba(160,160,255,0.12);color:#a0a0ff}
+  .badge-long{background:rgba(255,160,100,0.12);color:#ffa064}
+  .badge-size{background:rgba(255,255,255,0.07);color:#ccc;font-size:10px}
+  .mono{font-family:'JetBrains Mono',monospace;font-size:13px}
+  .text-green{color:var(--accent)} .text-red{color:var(--red)} .text-yellow{color:var(--yellow)}
+  .text-muted{color:var(--muted)} .text-blue{color:var(--blue)} .text-purple{color:var(--purple)}
+  .status-pill{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+  .status-pill.in-stock{background:var(--accent-dim);color:var(--accent)}
+  .status-pill.low-stock{background:var(--yellow-dim);color:var(--yellow)}
+  .status-pill.out{background:var(--red-dim);color:var(--red)}
+  .status-pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
+  .editable-cell{cursor:pointer;padding:4px 8px;border-radius:5px;transition:background 0.12s}
+  .editable-cell:hover{background:var(--subtle)}
+  .cell-input{background:var(--surface);border:1px solid var(--accent);border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;padding:4px 8px;width:80px;outline:none}
+  .cell-input-text{background:var(--surface);border:1px solid var(--accent);border-radius:5px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:4px 8px;width:160px;outline:none}
+  .btn-icon{background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer;font-size:13px;padding:5px 8px;transition:all 0.15s;line-height:1}
+  .btn-icon:hover{border-color:var(--red);color:var(--red);background:var(--red-dim)}
+  .btn-icon.sell:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+  .margin-bar{display:flex;align-items:center;gap:8px}
+  .bar-track{flex:1;height:5px;background:var(--border);border-radius:3px;min-width:50px;max-width:80px}
+  .bar-fill{height:100%;border-radius:3px;background:var(--accent)}
+  .empty-state{text-align:center;padding:64px 0;color:var(--muted)}
+  .empty-state .icon{font-size:40px;margin-bottom:12px}
+  .empty-state p{font-size:14px}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+  .modal-overlay.open{opacity:1;pointer-events:all}
+  .modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:32px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;transform:translateY(20px);transition:transform 0.2s}
+  .modal-overlay.open .modal{transform:translateY(0)}
+  .modal-title{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;margin-bottom:24px}
+  .modal-title span{color:var(--accent)}
+  .modal-close{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1}
+  .modal-close:hover{color:var(--red)}
+  .modal-form-group{margin-bottom:16px}
+  .modal-form-group label{display:block;font-size:10px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+  .modal-form-group input,.modal-form-group select{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;padding:10px 13px;outline:none;width:100%;transition:border-color 0.2s}
+  .modal-form-group input:focus,.modal-form-group select:focus{border-color:var(--accent)}
+  .modal-form-group input[type="number"]{font-family:'JetBrains Mono',monospace}
+  .modal-btn-row{display:flex;gap:10px;margin-top:20px}
+  .modal-cancel{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px 20px;cursor:pointer}
+  .modal-cancel:hover{border-color:var(--red);color:var(--red)}
+
+  #toast{position:fixed;bottom:28px;right:28px;background:var(--accent);color:var(--black);font-weight:600;font-size:13px;padding:12px 20px;border-radius:10px;opacity:0;transform:translateY(12px);transition:opacity 0.25s,transform 0.25s;pointer-events:none;z-index:999;box-shadow:0 4px 24px var(--accent-glow)}
+  #toast.show{opacity:1;transform:translateY(0)}
+  #toast.error{background:var(--red);box-shadow:0 4px 24px rgba(255,77,77,0.4)}
+  .btn-export{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:8px 14px;cursor:pointer;transition:all 0.15s}
+  .btn-export:hover{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setupScreen">
+  <div class="setup-box">
+    <div class="setup-logo">Thread<span> Arena</span></div>
+    <p class="setup-sub">Paste your Google Apps Script Web App URL to connect your live shared database.</p>
+    <label class="setup-label">Apps Script Web App URL</label>
+    <input class="setup-input" id="setupUrl" placeholder="https://script.google.com/macros/s/YOUR_ID/exec">
+    <button class="setup-btn" onclick="connectAPI()">⚡ Connect & Launch</button>
+    <p class="setup-note">You only need to enter this once — it's saved in your browser.</p>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Syncing…</div>
+</div>
+
+<header>
+  <div class="logo">Thread<span> Arena</span></div>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <span class="live-label">LIVE</span>
+    <span class="header-date" id="headerDate"></span>
+    <button class="btn-export" onclick="changeURL()">⚙ Change URL</button>
+    <button class="btn-export" onclick="exportCSV()">⬇ Export CSV</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('inventory',this)">👕 Inventory</button>
+  <button class="tab-btn" onclick="switchTab('sold',this)">💸 Sales Log</button>
+  <button class="tab-btn" onclick="switchTab('misc',this)">📦 Misc Costs</button>
+</div>
+
+<main>
+
+  <!-- INVENTORY -->
+  <div class="tab-content active" id="tab-inventory">
+    <div class="stats-strip">
+      <div class="stat-card white"><div class="stat-label">Total Jerseys</div><div class="stat-value" id="s-total">0</div></div>
+      <div class="stat-card blue"><div class="stat-label">Stock Remaining</div><div class="stat-value" id="s-stock">0</div></div>
+      <div class="stat-card red"><div class="stat-label">Total Cost</div><div class="stat-value" id="s-cost">$0</div></div>
+      <div class="stat-card yellow"><div class="stat-label">Units Sold</div><div class="stat-value" id="s-sold">0</div></div>
+      <div class="stat-card purple"><div class="stat-label">Misc Expenses</div><div class="stat-value" id="s-misc">$0</div></div>
+      <div class="stat-card green"><div class="stat-label">Net Profit</div><div class="stat-value" id="s-profit">$0</div><div class="stat-sub" id="s-profit-sub">after misc costs</div></div>
+    </div>
+    <div class="add-panel">
+      <div class="section-header" style="margin-bottom:20px"><div class="section-title">Add <span>Jersey</span></div></div>
+      <div class="form-grid fg-jersey">
+        <div class="form-group"><label>Jersey Name</label><input type="text" id="f-name" placeholder="e.g. Ronaldo #7 Real Madrid"></div>
+        <div class="form-group"><label>Sleeves</label><select id="f-sleeves"><option value="">— Sleeves —</option><option>Short</option><option>Long</option></select></div>
+        <div class="form-group"><label>Size</label><select id="f-size"><option value="">— Size —</option><option>Kids</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option><option>4XL</option></select></div>
+        <div class="form-group"><label>Type</label><select id="f-type"><option value="">— Type —</option><option>Home</option><option>Away</option></select></div>
+        <div class="form-group"><label>Quantity</label><input type="number" id="f-qty" placeholder="0" min="0"></div>
+        <div class="form-group"><label>Cost ($)</label><input type="number" id="f-cost" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group"><label>Price ($)</label><input type="number" id="f-price" placeholder="0.00" step="0.01" min="0"></div>
+        <div class="form-group"><label>Sold</label><input type="number" id="f-sold" placeholder="0" min="0"></div>
+        <button class="btn-add" id="btnAddJersey" onclick="addJersey()">+ Add Jersey</button>
+      </div>
+    </div>
+    <div class="section-header">
+      <div class="section-title">Inventory <span>Tracker</span></div>
+      <span class="count-badge" id="countBadge">0 items</span>
+    </div>
+    <div class="filter-bar">
+      <input class="filter-input" id="searchInput" placeholder="🔍  Search jerseys…" oninput="renderTable()">
+      <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+      <button class="filter-btn" onclick="setFilter('Home',this)">Home</button>
+      <button class="filter-btn" onclick="setFilter('Away',this)">Away</button>
+      <button class="filter-btn" onclick="setFilter('Short',this)">Short Sleeve</button>
+      <button class="filter-btn" onclick="setFilter('Long',this)">Long Sleeve</button>
+      <button class="filter-btn" onclick="setFilter('Kids',this)">Kids</button>
+      <button class="filter-btn" onclick="setFilter('low',this)">⚠ Low Stock</button>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr>
+          <th onclick="sortBy('name')">Jersey Name ↕</th>
+          <th onclick="sortBy('sleeves')">Sleeves ↕</th>
+          <th onclick="sortBy('size')">Size ↕</th>
+          <th onclick="sortBy('type')">Type ↕</th>
+          <th onclick="sortBy('qty')">Qty ↕</th>
+          <th onclick="sortBy('sold')">Sold ↕</th>
+          <th>Remaining</th>
+          <th onclick="sortBy('cost')">Cost ↕</th>
+          <th onclick="sortBy('price')">Price ↕</th>
+          <th>Profit/Unit</th>
+          <th>Margin</th>
+          <th>Revenue</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="empty-state" id="emptyState"><div class="icon">👕</div><p>No jerseys yet. Fill in the form above to get started.</p></div>
+    </div>
+  </div>
+
+  <!-- SALES LOG -->
+  <div class="tab-content" id="tab-sold">
+    <div class="stats-strip" style="grid-template-columns:repeat(3,1fr);max-width:700px;margin-bottom:32px">
+      <div class="stat-card yellow"><div class="stat-label">Total Transactions</div><div class="stat-value" id="sl-count">0</div></div>
+      <div class="stat-card blue"><div class="stat-label">Units Sold</div><div class="stat-value" id="sl-units">0</div></div>
+      <div class="stat-card green"><div class="stat-label">Total Revenue</div><div class="stat-value" id="sl-revenue">$0</div></div>
+    </div>
+    <div class="add-panel">
+      <div class="section-header" style="margin-bottom:20px"><div class="section-title">Record a <span>Sale</span></div></div>
+      <div class="form-grid fg-sell">
+        <div class="form-group"><label>Jersey</label><select id="sl-jersey"><option value="">— Select Jersey —</option></select></div>
+        <div class="form-group"><label>Size</label><select id="sl-size"><option value="">— Size —</option><option>Kids</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option><option>4XL</option></select></div>
+        <div class="form-group"><label>Quantity Sold</label><input type="number" id="sl-qty" placeholder="1" min="1" value="1"></div>
+        <div class="form-group"><label>Notes (optional)</label><input type="text" id="sl-notes" placeholder="e.g. customer name, order #"></div>
+        <button class="btn-add blue-btn" id="btnRecordSale" onclick="recordSale()">💸 Record Sale</button>
+      </div>
+    </div>
+    <div class="section-header">
+      <div class="section-title">Sales <span>Log</span></div>
+      <span class="count-badge" id="slCountBadge">0 sales</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Date & Time</th><th>Jersey</th><th>Size</th>
+          <th>Sleeves</th><th>Type</th><th>Qty</th><th>Price</th>
+          <th>Revenue</th><th>Profit</th><th>Notes</th><th>Action</th>
+        </tr></thead>
+        <tbody id="soldBody"></tbody>
+      </table>
+      <div class="empty-state" id="soldEmpty"><div class="icon">📋</div><p>No sales recorded yet.</p></div>
+    </div>
+  </div>
+
+  <!-- MISC COSTS -->
+  <div class="tab-content" id="tab-misc">
+    <div class="stats-strip" style="grid-template-columns:repeat(3,1fr);max-width:700px;margin-bottom:32px">
+      <div class="stat-card purple"><div class="stat-label">Total Misc Expenses</div><div class="stat-value" id="mc-total">$0</div></div>
+      <div class="stat-card white"><div class="stat-label">No. of Entries</div><div class="stat-value" id="mc-count">0</div></div>
+      <div class="stat-card green"><div class="stat-label">Net Profit (after misc)</div><div class="stat-value" id="mc-net">$0</div></div>
+    </div>
+    <div class="add-panel">
+      <div class="section-header" style="margin-bottom:20px"><div class="section-title">Add <span>Misc Cost</span></div></div>
+      <div class="form-grid fg-misc">
+        <div class="form-group"><label>Description</label><input type="text" id="mc-desc" placeholder="e.g. Shipping bags, printing, travel…"></div>
+        <div class="form-group"><label>Category</label><select id="mc-cat"><option>Shipping</option><option>Packaging</option><option>Marketing</option><option>Travel</option><option>Equipment</option><option>Fees</option><option>Other</option></select></div>
+        <div class="form-group"><label>Amount ($)</label><input type="number" id="mc-amount" placeholder="0.00" step="0.01" min="0"></div>
+        <button class="btn-add purple" id="btnAddMisc" onclick="addMisc()">+ Add Cost</button>
+      </div>
+    </div>
+    <div class="section-header">
+      <div class="section-title">Expense <span>Log</span></div>
+      <span class="count-badge" id="mcCountBadge">0 entries</span>
+    </div>
+    <div class="table-wrapper">
+      <table>
+        <thead><tr><th>#</th><th>Date</th><th>Description</th><th>Category</th><th>Amount</th><th>Action</th></tr></thead>
+        <tbody id="miscBody"></tbody>
+      </table>
+      <div class="empty-state" id="miscEmpty"><div class="icon">📦</div><p>No miscellaneous costs added yet.</p></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- SELL MODAL -->
+<div class="modal-overlay" id="sellModal">
+  <div class="modal">
+    <div class="modal-title"><button class="modal-close" onclick="closeSellModal()">✕</button>Sell from <span>Stock</span></div>
+    <input type="hidden" id="sm-id">
+    <div id="sm-info" style="background:var(--surface);border-radius:8px;padding:14px;margin-bottom:20px;font-size:13px;color:var(--muted)">—</div>
+    <div class="modal-form-group"><label>Size</label><select id="sm-size"><option value="">— Size —</option><option>Kids</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option><option>4XL</option></select></div>
+    <div class="modal-form-group"><label>Quantity to Sell</label><input type="number" id="sm-qty" min="1" value="1"></div>
+    <div class="modal-form-group"><label>Notes (optional)</label><input type="text" id="sm-notes" placeholder="Customer name, order #, etc."></div>
+    <div class="modal-btn-row">
+      <button class="btn-add" id="btnConfirmSell" onclick="confirmSell()" style="flex:1">💸 Confirm Sale</button>
+      <button class="modal-cancel" onclick="closeSellModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const URL_KEY = 'ta_api_url';
+let API_URL = localStorage.getItem(URL_KEY) || '';
+let jerseys = [], salesLog = [], miscCosts = [];
+let filterMode = 'all', sortKey = null, sortDir = 1;
+let isBusy = false;
+
+document.getElementById('headerDate').textContent =
+  new Date().toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'});
+
+if (API_URL) { document.getElementById('setupScreen').style.display='none'; loadAll(); }
+
+// ── SETUP ──
+function connectAPI() {
+  const url = document.getElementById('setupUrl').value.trim();
+  if (!url.startsWith('https://script.google.com')) { toastMsg('⚠ Paste a valid Apps Script URL','error'); return; }
+  API_URL = url;
+  localStorage.setItem(URL_KEY, API_URL);
+  document.getElementById('setupScreen').style.display='none';
+  loadAll();
+}
+function changeURL() {
+  if (!confirm('Change your API URL?')) return;
+  localStorage.removeItem(URL_KEY); location.reload();
+}
+
+// ── LOADING ──
+function showLoading(msg='Syncing…'){document.getElementById('loadingOverlay').classList.add('show');document.getElementById('loadingText').textContent=msg;}
+function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
+
+// ── API ──
+// Uses no-cors-safe GET for reads, and a URL-param encoded POST workaround for writes
+// All POST data is sent as a base64-encoded query param to avoid CORS preflight issues
+async function apiGET(action) {
+  const res = await fetch(`${API_URL}?action=${action}`, { redirect: 'follow' });
+  const text = await res.text();
+  const data = JSON.parse(text);
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function apiPOST(body) {
+  // Encode payload as base64 in a GET param — Apps Script doGet handles it
+  // This avoids CORS preflight that blocks local file:// POST requests
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(body))));
+  const res = await fetch(`${API_URL}?payload=${encodeURIComponent(encoded)}`, { redirect: 'follow' });
+  const text = await res.text();
+  const data = JSON.parse(text);
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadAll() {
+  showLoading('Loading data…');
+  try {
+    const d = await apiGET('getAll');
+    jerseys   = d.jerseys  || [];
+    salesLog  = (d.sales   || []).reverse();
+    miscCosts = d.misc     || [];
+    renderAll(); populateSellDropdown();
+  } catch(e) { toastMsg('⚠ Could not load: '+e.message,'error'); }
+  hideLoading();
+}
+
+// ── TOAST ──
+function toastMsg(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = type==='error' ? 'show error' : 'show';
+  setTimeout(()=>el.className='', 2600);
+}
+
+// ── TABS ──
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='sold') populateSellDropdown();
+  renderAll();
+}
+
+// ── ADD JERSEY ──
+async function addJersey() {
+  if (isBusy) return;
+  const name   = document.getElementById('f-name').value.trim();
+  const sleeves= document.getElementById('f-sleeves').value;
+  const size   = document.getElementById('f-size').value;
+  const type   = document.getElementById('f-type').value;
+  const qty    = parseInt(document.getElementById('f-qty').value)||0;
+  const cost   = parseFloat(document.getElementById('f-cost').value)||0;
+  const price  = parseFloat(document.getElementById('f-price').value)||0;
+  const sold   = parseInt(document.getElementById('f-sold').value)||0;
+  if (!name||!sleeves||!size||!type) { toastMsg('⚠ Fill in Name, Sleeves, Size & Type','error'); return; }
+  isBusy=true;
+  const btn=document.getElementById('btnAddJersey');
+  btn.disabled=true; btn.textContent='Saving…';
+  // profit stored as price-cost for backward compat with sheet columns
+  const item = { id: Date.now(), name, sleeves, size, type, qty, cost, profit: price, sold };
+  try {
+    await apiPOST({ action:'addJersey', data: item });
+    jerseys.push(item); renderAll(); populateSellDropdown();
+    toastMsg('✓ Jersey added!');
+    ['f-name','f-sleeves','f-size','f-qty','f-type','f-cost','f-price','f-sold'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el.tagName==='SELECT') el.selectedIndex=0; else el.value='';
+    });
+  } catch(e){ toastMsg('⚠ Save failed: '+e.message,'error'); }
+  btn.disabled=false; btn.textContent='+ Add Jersey'; isBusy=false;
+}
+
+// ── DELETE JERSEY ──
+async function deleteJersey(id) {
+  if (!confirm('Remove this jersey?')) return;
+  showLoading('Removing…');
+  try {
+    await apiPOST({ action:'deleteJersey', id });
+    jerseys=jerseys.filter(j=>j.id!==id);
+    renderAll(); populateSellDropdown();
+    toastMsg('🗑 Jersey removed');
+  } catch(e){ toastMsg('⚠ Failed: '+e.message,'error'); }
+  hideLoading();
+}
+
+// ── INLINE EDIT ──
+function makeEditable(td, id, field, isText) {
+  const j=jerseys.find(x=>x.id===id); if(!j) return;
+  const inp=document.createElement('input');
+  inp.className=isText?'cell-input-text':'cell-input';
+  inp.type=isText?'text':'number';
+  // if editing price field, show the stored profit value (which IS the price)
+  inp.value=j[field];
+  inp.step=(field==='cost'||field==='profit')?'0.01':'1';
+  inp.min='0';
+  td.innerHTML=''; td.appendChild(inp);
+  inp.focus(); inp.select();
+  async function commit(){
+    j[field]=isText?inp.value.trim():(parseFloat(inp.value)||0);
+    renderAll();
+    try{ await apiPOST({ action:'updateJersey', data: j }); }
+    catch(e){ toastMsg('⚠ Sync failed','error'); }
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();});
+}
+
+// ── SORT / FILTER ──
+function sortBy(key){if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=1;}renderTable();}
+function setFilter(mode,btn){
+  filterMode=mode;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderTable();
+}
+
+// ── SELL MODAL ──
+function openSellModal(id){
+  const j=jerseys.find(x=>x.id===id); if(!j) return;
+  document.getElementById('sm-id').value=id;
+  document.getElementById('sm-qty').value=1;
+  document.getElementById('sm-notes').value='';
+  document.getElementById('sm-size').selectedIndex=0;
+  const rem=Math.max(0,j.qty-j.sold);
+  const price=j.profit; // stored as price
+  const profitPerUnit=price-j.cost;
+  document.getElementById('sm-info').innerHTML=
+    `<strong style="color:var(--text)">${j.name}</strong><br>
+     Size: <b>${j.size}</b> &nbsp;|&nbsp; ${j.type} &nbsp;|&nbsp; ${j.sleeves} Sleeve<br>
+     Price: <b style="color:var(--accent)">$${price.toFixed(2)}</b> &nbsp;|&nbsp;
+     Profit/unit: <b style="color:var(--accent)">$${profitPerUnit.toFixed(2)}</b> &nbsp;|&nbsp;
+     Remaining: <b style="color:${rem<=3?'var(--yellow)':'var(--accent)'}">${rem}</b>`;
+  document.getElementById('sellModal').classList.add('open');
+}
+function closeSellModal(){document.getElementById('sellModal').classList.remove('open');}
+
+async function confirmSell(){
+  if(isBusy) return;
+  const id=parseInt(document.getElementById('sm-id').value);
+  const qty=parseInt(document.getElementById('sm-qty').value)||1;
+  const notes=document.getElementById('sm-notes').value.trim();
+  const size=document.getElementById('sm-size').value;
+  const j=jerseys.find(x=>x.id===id); if(!j) return;
+  const price=j.profit; // stored as price
+  if(qty>(j.qty-j.sold)){toastMsg('⚠ Not enough stock!','error');return;}
+  isBusy=true;
+  const btn=document.getElementById('btnConfirmSell');
+  btn.disabled=true; btn.textContent='Saving…';
+  const profitPerUnit=price-j.cost;
+  const sale={
+    id:Date.now(),jerseyId:id,name:j.name,sleeves:j.sleeves,
+    size:size||j.size,type:j.type,qty,sellPrice:price,
+    cost:j.cost,profit:profitPerUnit,
+    revenue:qty*price,profitTotal:qty*profitPerUnit,
+    notes,date:new Date().toISOString()
+  };
+  try{
+    await apiPOST({action:'addSale',data:sale});
+    j.sold+=qty; salesLog.unshift(sale);
+    renderAll(); populateSellDropdown(); closeSellModal();
+    toastMsg(`💸 ${qty} unit${qty>1?'s':''} sold!`);
+  }catch(e){toastMsg('⚠ Failed: '+e.message,'error');}
+  btn.disabled=false; btn.textContent='💸 Confirm Sale'; isBusy=false;
+}
+
+// ── RECORD SALE (sales tab) ──
+async function recordSale(){
+  if(isBusy) return;
+  const jid=parseInt(document.getElementById('sl-jersey').value);
+  const size=document.getElementById('sl-size').value;
+  const qty=parseInt(document.getElementById('sl-qty').value)||1;
+  const notes=document.getElementById('sl-notes').value.trim();
+  if(!jid){toastMsg('⚠ Select a jersey','error');return;}
+  const j=jerseys.find(x=>x.id===jid);
+  if(!j){toastMsg('⚠ Jersey not found','error');return;}
+  if(qty>(j.qty-j.sold)){toastMsg(`⚠ Only ${j.qty-j.sold} in stock!`,'error');return;}
+  isBusy=true;
+  const btn=document.getElementById('btnRecordSale');
+  btn.disabled=true; btn.textContent='Saving…';
+  const price=j.profit; // stored as price
+  const profitPerUnit=price-j.cost;
+  const sale={
+    id:Date.now(),jerseyId:jid,name:j.name,sleeves:j.sleeves,
+    size:size||j.size,type:j.type,qty,sellPrice:price,
+    cost:j.cost,profit:profitPerUnit,
+    revenue:qty*price,profitTotal:qty*profitPerUnit,
+    notes,date:new Date().toISOString()
+  };
+  try{
+    await apiPOST({action:'addSale',data:sale});
+    j.sold+=qty; salesLog.unshift(sale);
+    renderAll(); populateSellDropdown();
+    document.getElementById('sl-jersey').selectedIndex=0;
+    document.getElementById('sl-size').selectedIndex=0;
+    document.getElementById('sl-qty').value=1;
+    document.getElementById('sl-notes').value='';
+    toastMsg(`💸 Sale recorded — ${qty} unit${qty>1?'s':''}!`);
+  }catch(e){toastMsg('⚠ Failed: '+e.message,'error');}
+  btn.disabled=false; btn.textContent='💸 Record Sale'; isBusy=false;
+}
+
+async function deleteSale(id){
+  if(!confirm('Remove this sale? Stock will be restored.')) return;
+  showLoading('Restoring stock…');
+  try{
+    await apiPOST({action:'deleteSale',id});
+    const sale=salesLog.find(s=>s.id===id);
+    if(sale){const j=jerseys.find(x=>x.id===sale.jerseyId);if(j)j.sold=Math.max(0,j.sold-sale.qty);}
+    salesLog=salesLog.filter(s=>s.id!==id);
+    renderAll(); populateSellDropdown();
+    toastMsg('↩ Sale removed, stock restored');
+  }catch(e){toastMsg('⚠ Failed: '+e.message,'error');}
+  hideLoading();
+}
+
+// ── ADD MISC ──
+async function addMisc(){
+  if(isBusy) return;
+  const desc=document.getElementById('mc-desc').value.trim();
+  const cat=document.getElementById('mc-cat').value;
+  const amount=parseFloat(document.getElementById('mc-amount').value)||0;
+  if(!desc||amount<=0){toastMsg('⚠ Fill description and amount','error');return;}
+  isBusy=true;
+  const btn=document.getElementById('btnAddMisc');
+  btn.disabled=true; btn.textContent='Saving…';
+  const item={id:Date.now(),desc,cat,amount,date:new Date().toISOString()};
+  try{
+    await apiPOST({action:'addMisc',data:item});
+    miscCosts.unshift(item); renderAll();
+    document.getElementById('mc-desc').value='';
+    document.getElementById('mc-amount').value='';
+    toastMsg('📦 Misc cost added');
+  }catch(e){toastMsg('⚠ Failed: '+e.message,'error');}
+  btn.disabled=false; btn.textContent='+ Add Cost'; isBusy=false;
+}
+
+async function deleteMisc(id){
+  if(!confirm('Remove this expense?')) return;
+  showLoading('Removing…');
+  try{
+    await apiPOST({action:'deleteMisc',id});
+    miscCosts=miscCosts.filter(m=>m.id!==id); renderAll();
+    toastMsg('🗑 Expense removed');
+  }catch(e){toastMsg('⚠ Failed: '+e.message,'error');}
+  hideLoading();
+}
+
+// ── DROPDOWN ──
+function populateSellDropdown(){
+  const sel=document.getElementById('sl-jersey');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Select Jersey —</option>';
+  jerseys.forEach(j=>{
+    const rem=Math.max(0,j.qty-j.sold);
+    const opt=document.createElement('option');
+    opt.value=j.id;
+    opt.textContent=`${j.name} (${j.size}, ${j.type}) — ${rem} left`;
+    if(rem===0) opt.style.color='var(--muted)';
+    sel.appendChild(opt);
+  });
+  if(cur) sel.value=cur;
+}
+
+// ── RENDER TABLE ──
+function renderTable(){
+  const search=document.getElementById('searchInput').value.toLowerCase();
+  let data=jerseys.filter(j=>{
+    const rem=j.qty-j.sold;
+    if(filterMode==='Home') return j.type==='Home';
+    if(filterMode==='Away') return j.type==='Away';
+    if(filterMode==='Short') return j.sleeves==='Short';
+    if(filterMode==='Long') return j.sleeves==='Long';
+    if(filterMode==='Kids') return j.size==='Kids';
+    if(filterMode==='low') return rem<=3&&rem>0;
+    return true;
+  }).filter(j=>j.name.toLowerCase().includes(search));
+  if(sortKey) data.sort((a,b)=>{let va=a[sortKey],vb=b[sortKey];return typeof va==='string'?va.localeCompare(vb)*sortDir:(va-vb)*sortDir;});
+  const tbody=document.getElementById('tableBody');
+  const empty=document.getElementById('emptyState');
+  tbody.innerHTML='';
+  if(data.length===0){empty.style.display='block';document.getElementById('countBadge').textContent='0 items';return;}
+  empty.style.display='none';
+  document.getElementById('countBadge').textContent=`${data.length} item${data.length!==1?'s':''}`;
+  data.forEach(j=>{
+    const rem=j.qty-j.sold;
+    const price=j.profit;           // j.profit stores the selling price
+    const profitUnit=price-j.cost;  // actual profit = price - cost
+    const margin=price>0?Math.round((profitUnit/price)*100):0;
+    const revenue=j.sold*price;
+    let sc,sl;
+    if(rem<=0){sc='out';sl='Out of Stock';}
+    else if(rem<=3){sc='low-stock';sl='Low Stock';}
+    else{sc='in-stock';sl='In Stock';}
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><span class="jersey-name editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'name',true)">${j.name}</span></td>
+      <td><span class="badge badge-${j.sleeves.toLowerCase()}">${j.sleeves}</span></td>
+      <td><span class="badge badge-size">${j.size||'—'}</span></td>
+      <td><span class="badge badge-${j.type.toLowerCase()}">${j.type}</span></td>
+      <td><span class="mono editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'qty',false)">${j.qty}</span></td>
+      <td class="mono text-yellow">${j.sold}</td>
+      <td class="mono ${rem<=0?'text-red':rem<=3?'text-yellow':'text-green'}">${Math.max(0,rem)}</td>
+      <td><span class="mono text-red editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'cost',false)">$${j.cost.toFixed(2)}</span></td>
+      <td><span class="mono text-blue editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'profit',false)">$${price.toFixed(2)}</span></td>
+      <td class="mono text-green">$${profitUnit.toFixed(2)}</td>
+      <td><div class="margin-bar"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(Math.max(margin,0),100)}%"></div></div><span class="mono" style="font-size:11px;color:var(--muted)">${margin}%</span></div></td>
+      <td class="mono text-green">$${revenue.toFixed(2)}</td>
+      <td><span class="status-pill ${sc}">${sl}</span></td>
+      <td style="display:flex;gap:6px;align-items:center">
+        <button class="btn-icon sell" onclick="openSellModal(${j.id})">💸 Sell</button>
+        <button class="btn-icon" onclick="deleteJersey(${j.id})">✕</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── RENDER SALES LOG ──
+function renderSalesLog(){
+  const tbody=document.getElementById('soldBody');
+  const empty=document.getElementById('soldEmpty');
+  tbody.innerHTML='';
+  const tu=salesLog.reduce((s,x)=>s+Number(x.qty),0);
+  const tr2=salesLog.reduce((s,x)=>s+Number(x.revenue),0);
+  document.getElementById('sl-count').textContent=salesLog.length;
+  document.getElementById('sl-units').textContent=tu;
+  document.getElementById('sl-revenue').textContent='$'+tr2.toFixed(0);
+  document.getElementById('slCountBadge').textContent=`${salesLog.length} sale${salesLog.length!==1?'s':''}`;
+  if(salesLog.length===0){empty.style.display='block';return;}
+  empty.style.display='none';
+  salesLog.forEach((s,i)=>{
+    const d=new Date(s.date);
+    const ds=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const ts=d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td class="mono text-muted">#${salesLog.length-i}</td>
+      <td><span style="font-size:12px">${ds}</span><br><span style="font-size:11px;color:var(--muted)">${ts}</span></td>
+      <td class="jersey-name">${s.name}</td>
+      <td><span class="badge badge-size">${s.size||'—'}</span></td>
+      <td><span class="badge badge-${(s.sleeves||'').toLowerCase()}">${s.sleeves||'—'}</span></td>
+      <td><span class="badge badge-${(s.type||'').toLowerCase()}">${s.type||'—'}</span></td>
+      <td class="mono">${s.qty}</td>
+      <td class="mono text-blue">$${Number(s.sellPrice).toFixed(2)}</td>
+      <td class="mono text-yellow">$${Number(s.revenue).toFixed(2)}</td>
+      <td class="mono text-green">$${Number(s.profitTotal).toFixed(2)}</td>
+      <td class="text-muted" style="font-size:12px">${s.notes||'—'}</td>
+      <td><button class="btn-icon" title="Undo sale & restore stock" onclick="deleteSale(${s.id})">↩</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── RENDER MISC ──
+function renderMisc(){
+  const tbody=document.getElementById('miscBody');
+  const empty=document.getElementById('miscEmpty');
+  tbody.innerHTML='';
+  const total=miscCosts.reduce((s,m)=>s+Number(m.amount),0);
+  const gp=salesLog.reduce((s,x)=>s+Number(x.profitTotal),0);
+  const net=gp-total;
+  document.getElementById('mc-total').textContent='$'+total.toFixed(0);
+  document.getElementById('mc-count').textContent=miscCosts.length;
+  document.getElementById('mc-net').textContent='$'+net.toFixed(0);
+  document.getElementById('mc-net').style.color=net>=0?'var(--accent)':'var(--red)';
+  document.getElementById('mcCountBadge').textContent=`${miscCosts.length} entr${miscCosts.length!==1?'ies':'y'}`;
+  if(miscCosts.length===0){empty.style.display='block';return;}
+  empty.style.display='none';
+  miscCosts.forEach((m,i)=>{
+    const d=new Date(m.date);
+    const ds=d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td class="mono text-muted">#${i+1}</td>
+      <td style="font-size:12px">${ds}</td>
+      <td>${m.desc}</td>
+      <td><span class="badge" style="background:var(--purple-dim);color:var(--purple)">${m.cat}</span></td>
+      <td class="mono text-red">$${Number(m.amount).toFixed(2)}</td>
+      <td><button class="btn-icon" onclick="deleteMisc(${m.id})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── STATS ──
+function renderStats(){
+  const tc=jerseys.reduce((s,j)=>s+j.cost*j.qty,0);
+  const ts=jerseys.reduce((s,j)=>s+Math.max(0,j.qty-j.sold),0);
+  const sold=jerseys.reduce((s,j)=>s+j.sold,0);
+  const gp=salesLog.reduce((s,x)=>s+Number(x.profitTotal),0);
+  const misc=miscCosts.reduce((s,m)=>s+Number(m.amount),0);
+  const net=gp-misc;
+  document.getElementById('s-total').textContent=jerseys.length;
+  document.getElementById('s-stock').textContent=ts;
+  document.getElementById('s-cost').textContent='$'+tc.toFixed(0);
+  document.getElementById('s-sold').textContent=sold;
+  document.getElementById('s-misc').textContent='$'+misc.toFixed(0);
+  document.getElementById('s-profit').textContent='$'+net.toFixed(0);
+  document.getElementById('s-profit').style.color=net>=0?'var(--accent)':'var(--red)';
+  document.getElementById('s-profit-sub').textContent=`Gross: $${gp.toFixed(0)} − Misc: $${misc.toFixed(0)}`;
+}
+
+function renderAll(){renderStats();renderTable();renderSalesLog();renderMisc();}
+
+// ── EXPORT CSV ──
+function exportCSV(){
+  const hdr=['Name','Sleeves','Size','Type','Qty','Sold','Remaining','Cost','Price','Profit/Unit','Revenue'];
+  const rows=jerseys.map(j=>{
+    const rem=Math.max(0,j.qty-j.sold),price=j.profit,pu=price-j.cost;
+    return[j.name,j.sleeves,j.size,j.type,j.qty,j.sold,rem,j.cost.toFixed(2),price.toFixed(2),pu.toFixed(2),(j.sold*price).toFixed(2)];
+  });
+  const csv=[hdr,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`thread-arena-${Date.now()}.csv`;
+  a.click();
+  toastMsg('📥 CSV exported!');
+}
+</script>
+</body>
+</html>
