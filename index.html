@@ -676,20 +676,24 @@ function renderTable(){
   document.getElementById('countBadge').textContent=`${data.length} item${data.length!==1?'s':''}`;
   data.forEach(j=>{
     const rem=j.qty-j.sold;
-    const price=j.profit;           // j.profit stores the selling price
-    const profitUnit=price-j.cost;  // actual profit = price - cost
+    const price=j.profit;
+    const profitUnit=price-j.cost;
     const margin=price>0?Math.round((profitUnit/price)*100):0;
     const revenue=j.sold*price;
+    const name=String(j.name||'');
+    const sleeves=String(j.sleeves||'');
+    const size=String(j.size||'');
+    const type=String(j.type||'');
     let sc,sl;
     if(rem<=0){sc='out';sl='Out of Stock';}
     else if(rem<=3){sc='low-stock';sl='Low Stock';}
     else{sc='in-stock';sl='In Stock';}
     const tr=document.createElement('tr');
     tr.innerHTML=`
-      <td><span class="jersey-name editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'name',true)">${j.name}</span></td>
-      <td><span class="badge badge-${j.sleeves.toLowerCase()}">${j.sleeves}</span></td>
-      <td><span class="badge badge-size">${j.size||'—'}</span></td>
-      <td><span class="badge badge-${j.type.toLowerCase()}">${j.type}</span></td>
+      <td><span class="jersey-name editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'name',true)">${name}</span></td>
+      <td><span class="badge badge-${sleeves.toLowerCase()}">${sleeves}</span></td>
+      <td><span class="badge badge-size">${size||'—'}</span></td>
+      <td><span class="badge badge-${type.toLowerCase()}">${type}</span></td>
       <td><span class="mono editable-cell" title="Click to edit" onclick="makeEditable(this.parentElement,${j.id},'qty',false)">${j.qty}</span></td>
       <td class="mono text-yellow">${j.sold}</td>
       <td class="mono ${rem<=0?'text-red':rem<=3?'text-yellow':'text-green'}">${Math.max(0,rem)}</td>
@@ -732,8 +736,8 @@ function renderSalesLog(){
       <td><span style="font-size:12px">${ds}</span><br><span style="font-size:11px;color:var(--muted)">${ts}</span></td>
       <td class="jersey-name">${s.name}</td>
       <td><span class="badge badge-size">${s.size||'—'}</span></td>
-      <td><span class="badge badge-${(s.sleeves||'').toLowerCase()}">${s.sleeves||'—'}</span></td>
-      <td><span class="badge badge-${(s.type||'').toLowerCase()}">${s.type||'—'}</span></td>
+      <td><span class="badge badge-${String(s.sleeves||'').toLowerCase()}">${s.sleeves||'—'}</span></td>
+      <td><span class="badge badge-${String(s.type||'').toLowerCase()}">${s.type||'—'}</span></td>
       <td class="mono">${s.qty}</td>
       <td class="mono text-blue">$${Number(s.sellPrice).toFixed(2)}</td>
       <td class="mono text-yellow">$${Number(s.revenue).toFixed(2)}</td>
