@@ -104,15 +104,18 @@
   .filter-btn.active,.filter-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
   .count-badge{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
 
-  .table-wrapper{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:28px}
-  table{width:100%;border-collapse:collapse;font-size:13px}
+  .table-wrapper{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow-x:auto;margin-bottom:28px}
+  table{width:100%;min-width:1100px;border-collapse:collapse;font-size:13px}
   thead th{background:var(--surface);padding:13px 14px;text-align:left;font-size:10px;font-weight:600;letter-spacing:1.3px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
   thead th:hover{color:var(--accent)}
   thead th.sorted{color:var(--accent)}
+  thead th:last-child{position:sticky;right:0;background:var(--surface);z-index:2;box-shadow:-4px 0 8px rgba(0,0,0,0.3)}
   tbody tr{border-bottom:1px solid var(--border);transition:background 0.12s}
   tbody tr:last-child{border-bottom:none}
   tbody tr:hover{background:rgba(255,255,255,0.025)}
-  tbody td{padding:12px 14px;vertical-align:middle}
+  tbody td{padding:12px 14px;vertical-align:middle;white-space:nowrap}
+  tbody td:last-child{position:sticky;right:0;background:var(--card);z-index:1;box-shadow:-4px 0 8px rgba(0,0,0,0.2)}
+  tbody tr:hover td:last-child{background:#1f2228}
   .jersey-name{font-weight:600;color:var(--text)}
   .badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:0.5px}
   .badge-home{background:var(--blue-dim);color:var(--blue)}
@@ -259,7 +262,7 @@
           <th>Margin</th>
           <th>Revenue</th>
           <th>Status</th>
-          <th>Actions</th>
+          <th style="position:sticky;right:0;background:var(--surface);z-index:2;box-shadow:-4px 0 8px rgba(0,0,0,0.3)">Actions</th>
         </tr></thead>
         <tbody id="tableBody"></tbody>
       </table>
@@ -696,9 +699,11 @@ function renderTable(){
       <td><div class="margin-bar"><div class="bar-track"><div class="bar-fill" style="width:${Math.min(Math.max(margin,0),100)}%"></div></div><span class="mono" style="font-size:11px;color:var(--muted)">${margin}%</span></div></td>
       <td class="mono text-green">$${revenue.toFixed(2)}</td>
       <td><span class="status-pill ${sc}">${sl}</span></td>
-      <td style="display:flex;gap:6px;align-items:center">
-        <button class="btn-icon sell" onclick="openSellModal(${j.id})">💸 Sell</button>
-        <button class="btn-icon" onclick="deleteJersey(${j.id})">✕</button>
+      <td style="position:sticky;right:0;background:var(--card);z-index:1;box-shadow:-4px 0 8px rgba(0,0,0,0.2)">
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="btn-icon sell" onclick="openSellModal(${j.id})">💸 Sell</button>
+          <button class="btn-icon" style="border-color:var(--red-dim)" onclick="deleteJersey(${j.id})" title="Delete jersey">🗑 Del</button>
+        </div>
       </td>`;
     tbody.appendChild(tr);
   });
@@ -734,7 +739,7 @@ function renderSalesLog(){
       <td class="mono text-yellow">$${Number(s.revenue).toFixed(2)}</td>
       <td class="mono text-green">$${Number(s.profitTotal).toFixed(2)}</td>
       <td class="text-muted" style="font-size:12px">${s.notes||'—'}</td>
-      <td><button class="btn-icon" title="Undo sale & restore stock" onclick="deleteSale(${s.id})">↩</button></td>`;
+      <td><button class="btn-icon" style="color:var(--red);border-color:var(--red-dim)" title="Delete sale & restore stock" onclick="deleteSale(${s.id})">🗑 Delete</button></td>`;
     tbody.appendChild(tr);
   });
 }
@@ -764,7 +769,7 @@ function renderMisc(){
       <td>${m.desc}</td>
       <td><span class="badge" style="background:var(--purple-dim);color:var(--purple)">${m.cat}</span></td>
       <td class="mono text-red">$${Number(m.amount).toFixed(2)}</td>
-      <td><button class="btn-icon" onclick="deleteMisc(${m.id})">✕</button></td>`;
+      <td><button class="btn-icon" style="color:var(--red);border-color:var(--red-dim)" onclick="deleteMisc(${m.id})">🗑 Delete</button></td>`;
     tbody.appendChild(tr);
   });
 }
